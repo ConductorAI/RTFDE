@@ -53,7 +53,7 @@ jobs:
         run: python -m build
 
       - name: Setup JFrog CLI (OIDC)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+        if: ${{ !inputs.dry_run }}
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ vars.JF_URL }}
@@ -61,7 +61,7 @@ jobs:
           oidc-provider-name: ${{ vars.JF_OIDC_PROVIDER }}
 
       - name: Upload to Artifactory
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+        if: ${{ !inputs.dry_run }}
         run: |
           jf rt upload \
             --flat=true \
