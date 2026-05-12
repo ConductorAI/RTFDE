@@ -22,7 +22,13 @@ on:
       dry_run:
         description: "Build only; skip upload"
         type: boolean
-        default: false
+        default: true
+  # Push trigger is scoped to this workflow file so changes to it can be
+  # validated on a branch before merging. Build runs, but upload is gated
+  # to workflow_dispatch only (see step conditions below).
+  push:
+    paths:
+      - ".github/workflows/publish-artifactory.yml"
 
 permissions:
   id-token: write
@@ -47,7 +53,7 @@ jobs:
         run: python -m build
 
       - name: Setup JFrog CLI (OIDC)
-        if: ${{ !inputs.dry_run }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ vars.JF_URL }}
@@ -55,7 +61,7 @@ jobs:
           oidc-provider-name: ${{ vars.JF_OIDC_PROVIDER }}
 
       - name: Upload to Artifactory
-        if: ${{ !inputs.dry_run }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
         run: |
           jf rt upload \
             --flat=true \
