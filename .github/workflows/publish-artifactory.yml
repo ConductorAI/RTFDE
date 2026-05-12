@@ -59,6 +59,7 @@ jobs:
           JF_URL: ${{ vars.JF_URL }}
         with:
           oidc-provider-name: ${{ vars.JF_OIDC_PROVIDER }}
+          oidc-audience: github-actions
 
       - name: Upload to Artifactory
         if: ${{ !inputs.dry_run }}
