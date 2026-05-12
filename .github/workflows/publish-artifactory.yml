@@ -22,7 +22,7 @@ on:
       dry_run:
         description: "Build only; skip upload"
         type: boolean
-        default: true
+        default: false
   # Push trigger is scoped to this workflow file so changes to it can be
   # validated on a branch before merging. Build runs, but upload is gated
   # to workflow_dispatch only (see step conditions below).
