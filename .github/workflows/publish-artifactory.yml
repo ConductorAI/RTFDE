@@ -49,6 +49,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build
 
+      - name: Stamp local version (+cai.<run_number>)
+        run: |
+          BASE=$(python -c "import re,pathlib; print(re.search(r'version=\"([^\"]+)\"', pathlib.Path('setup.py').read_text()).group(1))")
+          LOCAL="${BASE}+cai.${{ github.run_number }}"
+          echo "Building ${LOCAL}"
+          sed -i "s/version=\"${BASE}\"/version=\"${LOCAL}\"/" setup.py
+
       - name: Build sdist and wheel
         run: python -m build
 
