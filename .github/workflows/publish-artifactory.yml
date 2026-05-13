@@ -1,0 +1,91 @@
+# Publishes the RTFDE Python package to JFrog Artifactory.
+#
+# Auth: OIDC via jfrog/setup-jfrog-cli. No long-lived secrets — the runner
+# exchanges a GitHub OIDC token for a short-lived Artifactory access token.
+#
+# Required GitHub configuration (Settings → Secrets and variables → Actions):
+#   Variables:
+#     JF_URL                  JFrog platform URL, e.g. https://yourcompany.jfrog.io
+#     JF_OIDC_PROVIDER        Name of the OIDC integration configured in JFrog
+#                             (Platform → Administration → General → Manage Integrations)
+#     JF_PYPI_REPO            Target PyPI repo key, e.g. pypi-local
+#
+# The JFrog OIDC integration must trust this GitHub repo (claims:
+# repository, ref, etc.) and map to a user/permission with deploy rights
+# on JF_PYPI_REPO.
+
+name: Publish to Artifactory
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build only; skip upload"
+        type: boolean
+        default: false
+  # Push trigger is scoped to this workflow file so changes to it can be
+  # validated on a branch before merging. Build runs, but upload is gated
+  # to workflow_dispatch only (see step conditions below).
+  push:
+    paths:
+      - ".github/workflows/publish-artifactory.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+
+      - name: Stamp local version (+cai.<run_number>)
+        run: |
+          BASE=$(python -c "import re,pathlib; print(re.search(r'version=\"([^\"]+)\"', pathlib.Path('setup.py').read_text()).group(1))")
+          LOCAL="${BASE}+cai.${{ github.run_number }}"
+          echo "Building ${LOCAL}"
+          sed -i "s/version=\"${BASE}\"/version=\"${LOCAL}\"/" setup.py
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Setup JFrog CLI (OIDC)
+        if: ${{ !inputs.dry_run }}
+        uses: jfrog/setup-jfrog-cli@5a4fbe1e30dbb570cc62d2513421c4b9bc3c9959 # v4.10.1
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+        with:
+          oidc-provider-name: ${{ vars.JF_OIDC_PROVIDER }}
+          oidc-audience: github-actions
+
+      - name: Upload to Artifactory and publish build info
+        if: ${{ !inputs.dry_run }}
+        env:
+          JFROG_CLI_BUILD_NAME: RTFDE
+          JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
+          JFROG_CLI_BUILD_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JF_PYPI_REPO: ${{ vars.JF_PYPI_REPO }}
+        run: |
+          jf rt upload \
+            --flat=true \
+            "dist/(*)" \
+            "${JF_PYPI_REPO}/RTFDE/{1}"
+          jf rt build-collect-env
+          jf rt build-add-git
+          jf rt build-publish
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
