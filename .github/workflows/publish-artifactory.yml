@@ -68,13 +68,20 @@ jobs:
           oidc-provider-name: ${{ vars.JF_OIDC_PROVIDER }}
           oidc-audience: github-actions
 
-      - name: Upload to Artifactory
+      - name: Upload to Artifactory and publish build info
         if: ${{ !inputs.dry_run }}
+        env:
+          JFROG_CLI_BUILD_NAME: RTFDE
+          JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
+          JFROG_CLI_BUILD_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           jf rt upload \
             --flat=true \
             "dist/(*)" \
             "${{ vars.JF_PYPI_REPO }}/RTFDE/{1}"
+          jf rt build-collect-env
+          jf rt build-add-git
+          jf rt build-publish
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
