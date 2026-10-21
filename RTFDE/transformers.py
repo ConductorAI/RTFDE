@@ -58,7 +58,7 @@ Args:
                 return b""
 
         # process known non-visible groups
-        non_visible_control_words = [b"\\context", b"\\colortbl", b"\\fonttbl"]
+        non_visible_control_words = [b"\\context", b"\\colortbl", b"\\fonttbl", b"\\pict"]
         first_control = self.get_first_controlword(children)
         # print(f"FIRST: {first_control}")
         if first_control in non_visible_control_words:
